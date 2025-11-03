@@ -14,6 +14,10 @@ services:
       - sonar-init:/sonar-init
     environment:
       - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+    labels:
+      - "logging=enabled"
+      - "service=automatizacion-service"
+      - "env=dev"
   sonarqube:
     image: sonarqube:community
     container_name: sonarqube
@@ -21,6 +25,10 @@ services:
       - "9000:9000"
     environment:
       - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+    labels:
+      - "logging=enabled"
+      - "service=automatizacion-service"
+      - "env=dev"
     ulimits:
       nproc: 65535
       nofile:
@@ -38,7 +46,11 @@ services:
     volumes:
       - ./sonarqube-init:/sonarqube-init
       - sonar-init:/sonar-init
-    entrypoint: ["/bin/sh", "-c", "chmod +x /sonarqube-init/init-sonar.sh && /sonarqube-init/init-sonar.sh"]
+    entrypoint: ["/bin/sh", "-c", "/bin/sh /sonarqube-init/init-sonar.sh"]
+    labels:
+      - "logging=enabled"
+      - "service=automatizacion-service"
+      - "env=dev"
 volumes:
   jenkins_home:
   sonar_data:

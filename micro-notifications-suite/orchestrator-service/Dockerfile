@@ -10,6 +10,5 @@ RUN mvn -q -DskipTests -pl orchestrator-service -am package
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 COPY --from=build /workspace/orchestrator-service/target/orchestrator-service-*.jar app.jar
-RUN mkdir -p /app/logs
 EXPOSE 8083
 ENTRYPOINT ["java","-jar","/app/app.jar"]

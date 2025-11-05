@@ -4,15 +4,12 @@ import org.springframework.amqp.rabbit.annotation.RabbitListener;
 import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
 
 @Component
 public class AuthEventsListener {
-  private static final Logger log = LoggerFactory.getLogger(AuthEventsListener.class);
   private final RabbitTemplate rabbitTemplate;
   private final String exchange;
 
@@ -25,7 +22,6 @@ public class AuthEventsListener {
   public void onRegistered(Map<String, Object> evt){
     // Regla: al crear cuenta, enviar correo de confirmación.
     String email = (String) evt.get("email");
-    log.info("onRegistered event received email={}", email);
     Map<String,Object> notify = new HashMap<>();
     notify.put("channel","email");
     notify.put("email", email);
@@ -38,7 +34,6 @@ public class AuthEventsListener {
     // Regla: seguridad: email y sms
     String email = (String) evt.get("email");
     String phone = (String) evt.get("phone");
-    log.info("onLogin event received email={} phone={}", email, phone);
     for(String channel : new String[]{"email","sms"}){
       Map<String,Object> notify = new HashMap<>();
       notify.put("channel", channel);
@@ -52,7 +47,6 @@ public class AuthEventsListener {
   @RabbitListener(queues = "auth.user.password.reset.requested")
   public void onReset(Map<String, Object> evt){
     String email = (String) evt.get("email");
-    log.info("onReset event received email={}", email);
     Map<String,Object> notify = new HashMap<>();
     notify.put("channel","email");
     notify.put("email", email);
@@ -64,7 +58,6 @@ public class AuthEventsListener {
   public void onUpdated(Map<String, Object> evt){
     String email = (String) evt.get("email");
     String phone = (String) evt.get("phone");
-    log.info("onUpdated event received email={} phone={}", email, phone);
     for(String channel : new String[]{"email","sms"}){
       Map<String,Object> notify = new HashMap<>();
       notify.put("channel", channel);

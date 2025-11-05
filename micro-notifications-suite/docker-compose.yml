@@ -54,14 +54,7 @@ services:
       - APP_RABBIT_EXCHANGE=events.exchange
       - SPRING_RABBITMQ_HOST=rabbitmq
       - SPRING_RABBITMQ_PORT=5672
-      - ENV=docker
-    labels:
-      - "logging=enabled"
-      - "service=orchestrator-service"
-      - "env=dev"
     ports: [ "8081:8081" ]
-    volumes:
-      - ./logs/auth:/app/logs
 
   notification-service:
     build:
@@ -89,10 +82,7 @@ services:
       - SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH=true
       - SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=true
       - SPRING_MAIL_FROM=david.santiago.velasco.12@gmail.com
-      - ENV=docker
     ports: [ "8082:8082" ]
-    volumes:
-      - ./logs/notification:/app/logs
 
   orchestrator-service:
     build:
@@ -106,7 +96,4 @@ services:
       - APP_RABBIT_EXCHANGE=events.exchange
       - SPRING_RABBITMQ_HOST=rabbitmq
       - SPRING_RABBITMQ_PORT=5672
-      - ENV=docker
     ports: [ "8083:8083" ]
-    volumes:
-      - ./logs/orchestrator:/app/logs

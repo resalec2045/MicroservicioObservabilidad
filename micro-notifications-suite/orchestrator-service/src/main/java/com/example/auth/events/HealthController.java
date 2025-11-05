@@ -1,4 +1,4 @@
-package com.example.notification.api;
+package com.example.auth.events;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.info.BuildProperties;

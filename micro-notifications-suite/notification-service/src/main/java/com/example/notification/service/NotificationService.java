@@ -4,15 +4,12 @@ import com.example.notification.domain.Notification;
 import com.example.notification.domain.NotificationRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 import java.util.List;
 
 @Service
 public class NotificationService {
-  private static final Logger log = LoggerFactory.getLogger(NotificationService.class);
   private final NotificationRepository repo;
   private final Providers providers;
 
@@ -27,13 +24,10 @@ public class NotificationService {
     n.setContent(content); n.setStatus("PENDING");
     repo.save(n);
     try {
-      log.debug("sending notification id={} channel={} to email={} phone={}", n.getId(), channel, email, phone);
       providers.send(n);
       n.setStatus("SENT");
-      log.info("notification sent id={} channel={} status=SENT", n.getId(), channel);
     } catch(Exception e){
       n.setStatus("FAILED"); n.setErrorMessage(e.getMessage());
-      log.error("failed to send notification id={} channel={} error={}", n.getId(), channel, e.getMessage(), e);
     }
     return repo.save(n);
   }

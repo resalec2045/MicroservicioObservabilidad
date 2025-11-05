@@ -11,10 +11,10 @@ services:
       MONGO_INITDB_DATABASE: userdb
     volumes:
       - mongo_data:/data/db
-    # labels:
-    #   - "logging=enabled"
-    #   - "service=mongo"
-    #   - "env=dev"
+    labels:
+      - "logging=enabled"
+      - "service=mongo"
+      - "env=dev"
 
   api:
     build: .

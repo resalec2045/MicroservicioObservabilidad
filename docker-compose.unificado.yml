@@ -1,0 +1,325 @@
+version: '3.9'
+
+services:
+  # auth-api
+  mongo:
+    image: mongo:6.0
+    container_name: mongo_db
+    restart: always
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_DATABASE: userdb
+    volumes:
+      - mongo_data:/data/db
+    labels:
+      - "logging=enabled"
+      - "service=mongo"
+      - "env=dev"
+    networks:
+      - obs-net
+
+  api:
+    build:
+      context: ./auth-api
+    container_name: api_rest_mongo
+    restart: always
+    ports:
+      - "8080:8080"
+    environment:
+      SPRING_DATA_MONGODB_URI: mongodb://mongo:27017/userdb
+    depends_on:
+      - mongo
+    labels:
+      - "logging=enabled"
+      - "service=auth-api"
+      - "env=dev"
+    networks:
+      - obs-net
+
+  # micro-notifications-suite
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+
+  postgres-auth:
+    image: postgres:16
+    container_name: postgres-auth
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=authdb
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  postgres-notification:
+    image: postgres:16
+    container_name: postgres-notification
+    environment:
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_DB=notificationdb
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  auth-service:
+    build:
+      context: ./micro-notifications-suite
+      dockerfile: auth-service/Dockerfile
+    depends_on:
+      postgres-auth:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-auth:5432/authdb
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - APP_JWT_SECRET=ThisIsASecretKeyForJwtDemoThisIsASecretKeyForJwtDemo
+      - APP_RABBIT_EXCHANGE=events.exchange
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+    ports:
+      - "8081:8081"
+
+  notification-service:
+    build:
+      context: ./micro-notifications-suite
+      dockerfile: notification-service/Dockerfile
+    depends_on:
+      rabbitmq:
+        condition: service_started
+      postgres-notification:
+        condition: service_healthy
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://postgres-notification:5432/notificationdb
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=postgres
+      - SPRING_JPA_HIBERNATE_DDL_AUTO=update
+      - APP_JWT_SECRET=ThisIsASecretKeyForJwtDemoThisIsASecretKeyForJwtDemo
+      - APP_RABBIT_EXCHANGE=events.exchange
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+      - SPRING_MAIL_HOST=smtp.gmail.com
+      - SPRING_MAIL_PORT=587
+      - SPRING_MAIL_USERNAME=david.santiago.velasco.12@gmail.com
+      - SPRING_MAIL_PASSWORD=ljzd ttcx jsnm oyja
+      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH=true
+      - SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE=true
+      - SPRING_MAIL_FROM=david.santiago.velasco.12@gmail.com
+    ports:
+      - "8082:8082"
+
+  orchestrator-service:
+    build:
+      context: ./micro-notifications-suite
+      dockerfile: orchestrator-service/Dockerfile
+    depends_on:
+      rabbitmq:
+        condition: service_started
+    environment:
+      - SPRING_PROFILES_ACTIVE=docker
+      - APP_RABBIT_EXCHANGE=events.exchange
+      - SPRING_RABBITMQ_HOST=rabbitmq
+      - SPRING_RABBITMQ_PORT=5672
+    ports:
+      - "8083:8083"
+
+  # observabilidad
+  loki:
+    image: grafana/loki:2.9.8
+    command: -config.file=/etc/loki/config/loki-config.yml
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./observabilidad/loki-config.yml:/etc/loki/config/loki-config.yml:ro
+      - loki-data:/loki
+    networks:
+      - obs-net
+
+  grafana:
+    image: grafana/grafana:11.2.2
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_USERS_ALLOW_SIGN_UP=false
+    depends_on:
+      - loki
+    networks:
+      - obs-net
+
+  promtail:
+    image: grafana/promtail:2.9.8
+    command: -config.file=/etc/promtail/config/promtail-config.yml
+    volumes:
+      - ./observabilidad/promtail-config.yml:/etc/promtail/config/promtail-config.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      - loki
+    networks:
+      - obs-net
+
+  monitoring-service:
+    build:
+      context: ./observabilidad/monitoring-service
+    env_file:
+      - ./observabilidad/monitoring-service/.env.example
+    environment:
+      - PORT=8088
+      - SERVICE_NAME=monitoring-service
+      - SMTP_HOST=smtp.gmail.com
+      - SMTP_PORT=587
+      - SMTP_SECURE=false
+      - SMTP_USER=david.santiago.velasco.12@gmail.com
+      - SMTP_PASS=ljzd ttcx jsnm oyja
+      - SMTP_FROM=david.santiago.velasco.12@gmail.com
+      - DEFAULT_FREQ_MS=30000
+      - REQUEST_TIMEOUT_MS=5000
+    ports:
+      - "8088:8088"
+    depends_on:
+      - loki
+      - promtail
+    labels:
+      - "logging=enabled"
+      - "service=monitoring-service"
+    networks:
+      - obs-net
+
+  # taller-automatizacion
+  jenkins:
+    build:
+      context: ./taller-automatizacion-proyecto-4faae1bcbf35d7c55b8d1277b97692909490c642
+      dockerfile: Dockerfile.jenkins
+    container_name: jenkins
+    ports:
+      - "8090:8080"
+      - "50000:50000"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - ./taller-automatizacion-proyecto-4faae1bcbf35d7c55b8d1277b97692909490c642/jenkins-init:/usr/share/jenkins/ref/init.groovy.d
+      - sonar-init:/sonar-init
+    environment:
+      - JAVA_OPTS=-Djenkins.install.runSetupWizard=false
+    labels:
+      - "logging=enabled"
+      - "service=automatizacion-service"
+      - "env=dev"
+
+  sonarqube:
+    image: sonarqube:community
+    container_name: sonarqube
+    ports:
+      - "9000:9000"
+    environment:
+      - SONAR_ES_BOOTSTRAP_CHECKS_DISABLE=true
+    labels:
+      - "logging=enabled"
+      - "service=automatizacion-service"
+      - "env=dev"
+    ulimits:
+      nproc: 65535
+      nofile:
+        soft: 65535
+        hard: 65535
+    volumes:
+      - sonar_data:/opt/sonarqube/data
+      - sonar_extensions:/opt/sonarqube/extensions
+      - ./taller-automatizacion-proyecto-4faae1bcbf35d7c55b8d1277b97692909490c642/sonarqube-init:/sonarqube-init
+      - sonar-init:/sonar-init
+
+  sonar-init:
+    image: curlimages/curl:latest
+    depends_on:
+      - sonarqube
+    volumes:
+      - ./taller-automatizacion-proyecto-4faae1bcbf35d7c55b8d1277b97692909490c642/sonarqube-init:/sonarqube-init
+      - sonar-init:/sonar-init
+    entrypoint: ["/bin/sh", "-c", "/bin/sh /sonarqube-init/init-sonar.sh"]
+    labels:
+      - "logging=enabled"
+      - "service=automatizacion-service"
+      - "env=dev"
+
+  # user-profile-service
+  profile-mysql:
+    image: mysql:8.0
+    container_name: profile-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpass
+      MYSQL_DATABASE: profiles_db
+      MYSQL_USER: profile_user
+      MYSQL_PASSWORD: profile_pass
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-prootpass"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    volumes:
+      - db_data:/var/lib/mysql
+    command: ["mysqld", "--default-authentication-plugin=mysql_native_password", "--character-set-server=utf8mb4", "--collation-server=utf8mb4_unicode_ci"]
+
+  profile-service:
+    build:
+      context: ./user-profile-service
+    container_name: profile-service
+    environment:
+      PORT: 8084
+      MYSQL_HOST: profile-mysql
+      MYSQL_PORT: 3306
+      MYSQL_DB: profiles_db
+      MYSQL_USER: profile_user
+      MYSQL_PASSWORD: profile_pass
+      SERVICE_NAME: profile-service
+      ENV: dev
+    depends_on:
+      profile-mysql:
+        condition: service_healthy
+    labels:
+      - "logging=enabled"
+      - "service=user-profile-service"
+      - "env=dev"
+    ports:
+      - "8084:8084"
+    volumes:
+      - profile_logs:/app/logs
+      - ./user-profile-service/app/src/main/resources/logback-spring.xml:/app/resources/logback-spring.xml:ro
+
+volumes:
+  mongo_data:
+  loki-data:
+  jenkins_home:
+  sonar_data:
+  sonar_extensions:
+  sonar-init:
+  db_data:
+  profile_logs:
+
+networks:
+  obs-net:
+    external: true
+    name: obs-net

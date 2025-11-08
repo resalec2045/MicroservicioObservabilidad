@@ -1,0 +1,116 @@
+{
+  "info": {
+    "_postman_id": "api-gateway-collection-001",
+    "name": "API Gateway Collection",
+    "description": "Colección para consumir los endpoints principales del API Gateway.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{base_url}}/health",
+          "host": ["{{base_url}}"],
+          "path": ["health"]
+        }
+      }
+    },
+    {
+      "name": "Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/auth/login",
+          "host": ["{{base_url}}"],
+          "path": ["api", "auth", "login"]
+        }
+      }
+    },
+    {
+      "name": "Register",
+      "request": {
+        "method": "POST",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"newuser@example.com\",\n  \"password\": \"password123\",\n  \"name\": \"Nuevo Usuario\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/auth/register",
+          "host": ["{{base_url}}"],
+          "path": ["api", "auth", "register"]
+        }
+      }
+    },
+    {
+      "name": "Delete User",
+      "request": {
+        "method": "DELETE",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "Authorization", "value": "Bearer {{token}}"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"user@example.com\",\n  \"phone\": \"1234567890\"\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/auth/users/{{userId}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "auth", "users", "{{userId}}"]
+        }
+      }
+    },
+    {
+      "name": "Get Combined User & Profile",
+      "request": {
+        "method": "GET",
+        "header": [
+          {"key": "Authorization", "value": "Bearer {{token}}"}
+        ],
+        "url": {
+          "raw": "{{base_url}}/api/users/combined/{{userId}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "users", "combined", "{{userId}}"]
+        }
+      }
+    },
+    {
+      "name": "Update Combined User & Profile",
+      "request": {
+        "method": "PUT",
+        "header": [
+          {"key": "Content-Type", "value": "application/json"},
+          {"key": "Authorization", "value": "Bearer {{token}}"}
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"auth\": {\n    \"name\": \"Usuario Actualizado\"\n  },\n  \"profile\": {\n    \"phone\": \"9876543210\"\n  }\n}"
+        },
+        "url": {
+          "raw": "{{base_url}}/api/users/combined/{{userId}}",
+          "host": ["{{base_url}}"],
+          "path": ["api", "users", "combined", "{{userId}}"]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {"key": "base_url", "value": "http://localhost:8090"},
+    {"key": "userId", "value": "1"},
+    {"key": "token", "value": ""}
+  ]
+}
+
